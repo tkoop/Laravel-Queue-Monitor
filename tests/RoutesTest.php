@@ -40,6 +40,34 @@ class RoutesTest extends DatabaseTestCase
             ->assertViewIs('queue-monitor::jobs');
     }
 
+    public function testIndexStatusFilterAll()
+    {
+        config(['queue-monitor.ui.enabled' => true]);
+
+        Monitor::query()->create(['job_id' => mt_rand(), 'status' => MonitorStatus::RUNNING]);
+        Monitor::query()->create(['job_id' => mt_rand(), 'status' => MonitorStatus::FAILED]);
+
+        $this
+            ->get('/jobs?status=')
+            ->assertStatus(200)
+            ->assertViewHas('filters', fn (array $filters) => null === $filters['status'])
+            ->assertViewHas('jobs', fn ($jobs) => 2 === $jobs->total());
+    }
+
+    public function testIndexStatusFilterRunning()
+    {
+        config(['queue-monitor.ui.enabled' => true]);
+
+        Monitor::query()->create(['job_id' => mt_rand(), 'status' => MonitorStatus::RUNNING]);
+        Monitor::query()->create(['job_id' => mt_rand(), 'status' => MonitorStatus::FAILED]);
+
+        $this
+            ->get('/jobs?status=0')
+            ->assertStatus(200)
+            ->assertViewHas('filters', fn (array $filters) => MonitorStatus::RUNNING === $filters['status'])
+            ->assertViewHas('jobs', fn ($jobs) => 1 === $jobs->total());
+    }
+
     /*
      *--------------------------------------------------------------------------
      * Delete Monitor
