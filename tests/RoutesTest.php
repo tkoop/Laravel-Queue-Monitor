@@ -4,6 +4,7 @@ namespace romanzipp\QueueMonitor\Tests;
 
 use romanzipp\QueueMonitor\Enums\MonitorStatus;
 use romanzipp\QueueMonitor\Models\Monitor;
+use romanzipp\QueueMonitor\Tests\Support\MonitoredJob;
 use romanzipp\QueueMonitor\Tests\TestCases\DatabaseTestCase;
 
 class RoutesTest extends DatabaseTestCase
@@ -66,6 +67,30 @@ class RoutesTest extends DatabaseTestCase
             ->assertStatus(200)
             ->assertViewHas('filters', fn (array $filters) => MonitorStatus::RUNNING === $filters['status'])
             ->assertViewHas('jobs', fn ($jobs) => 1 === $jobs->total());
+    }
+
+    public function testIndexFiltersByJobNameWithoutRestrictingStatusToRunning()
+    {
+        config(['queue-monitor.ui.enabled' => true]);
+
+        Monitor::query()->create([
+            'job_id' => '1',
+            'name' => MonitoredJob::class,
+            'status' => MonitorStatus::SUCCEEDED,
+            'started_at' => now(),
+        ]);
+
+        Monitor::query()->create([
+            'job_id' => '2',
+            'name' => MonitoredJob::class,
+            'status' => MonitorStatus::FAILED,
+            'started_at' => now(),
+        ]);
+
+        $this
+            ->get('/jobs?name=MonitoredJob&status=&queue=all')
+            ->assertStatus(200)
+            ->assertViewHas('jobs', fn ($jobs) => 2 === $jobs->total());
     }
 
     /*
